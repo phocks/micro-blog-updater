@@ -2,6 +2,9 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, TextInput, Button } from "react-native";
 import Octokat from "octokat";
+import * as dayjs from "dayjs";
+
+// Config
 import { API_URL, API_TOKEN } from "@env";
 
 const octo = new Octokat({ token: API_TOKEN });
@@ -32,17 +35,50 @@ export default function App() {
       />
       <Button
         title="Press me"
-        onPress={() => {
-          repo
-            .contents("public/feed.json")
-            .fetch()
-            .then(({ sha, content, ...info }) => {
-              const decode = Buffer.from(content, "base64").toString("utf-8");
-              console.log(decode);
+        onPress={async () => {
+          const result = await repo.contents("public/feed.json").fetch();
+          const { sha, content, ...info } = result;
 
-              const test = { id: "5" };
-              console.log(`${JSON.stringify(test)}`);
-            });
+          const decodedContent = Buffer.from(content, "base64").toString(
+            "utf-8"
+          );
+          const parsedContent = JSON.parse(decodedContent);
+          const { items } = parsedContent;
+
+          const latestUpdate = items[0];
+          const { id } = latestUpdate;
+
+          const newUpdate = {
+            id: (parseInt(id) + 1).toString(),
+            date_published: dayjs().format(),
+            content_text: inputText,
+          };
+
+          const newItems = [newUpdate, ...items];
+          console.log(newItems);
+
+          parsedContent.items = newItems;
+
+          const finalDocument = { ...parsedContent, items: newItems };
+
+          console.log(finalDocument);
+          const finalDocJSON = JSON.stringify(finalDocument, null, 2);
+
+          if (inputText !== "") {
+            var config = {
+              message: "Updating file",
+              content: Buffer.from(finalDocJSON).toString("base64"),
+              sha: sha,
+              // branch: 'gh-pages'
+            };
+
+            repo
+              .contents("public/feed.json")
+              .add(config)
+              .then(({ sha, ...info }) => {
+                console.log("File Updated. new sha is ", sha);
+              });
+          }
         }}
       />
       <StatusBar style="auto" />
