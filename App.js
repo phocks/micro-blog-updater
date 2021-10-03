@@ -1,14 +1,16 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, TextInput, Button } from "react-native";
-import Octokat from "octokat";
-import * as dayjs from "dayjs";
+import dayjs from 'dayjs';
+import GitHub from "github-api";
+import { Buffer } from "buffer"
+
 
 // Config
 import { API_URL, API_TOKEN } from "@env";
 
-const octo = new Octokat({ token: API_TOKEN });
-const repo = octo.repos("phocks", "phocks.vercel.app");
+// const octo = new Octokat({ token: API_TOKEN });
+// const repo = octo.repos("phocks", "phocks.vercel.app");
 
 export default function App() {
   const [inputText, setInputText] = useState("");
@@ -36,8 +38,32 @@ export default function App() {
       <Button
         title="Press me"
         onPress={async () => {
-          const result = await repo.contents("public/feed.json").fetch();
-          const { sha, content, ...info } = result;
+          var gh = new GitHub({
+            username: "phocks",
+            token: API_TOKEN,
+          });
+
+          const repo = gh.getRepo("phocks", "phocks.vercel.app");
+          // const branch = config.app.repoBranch;
+          // const path = "README2.md";
+          // const content = "#Foo Bar\nthis is foo bar";
+          // const message = "add foo bar to the readme";
+          // const options = {};
+
+          // repo.writeFile(branch, path, content, message, options).then((r) => {
+          //   console.log(r);
+          // });
+
+          const result = await repo.getContents(
+            "main",
+            "public/feed.json",
+            false
+          );
+
+          console.log(result);
+
+          // const result = await repo.contents("public/feed.json").fetch();
+          const { sha, content, ...info } = result.data;
 
           const decodedContent = Buffer.from(content, "base64").toString(
             "utf-8"
@@ -66,17 +92,22 @@ export default function App() {
 
           if (inputText !== "") {
             var config = {
-              message: "Updating file",
-              content: Buffer.from(finalDocJSON).toString("base64"),
+              // message: "Updating file",
+              // content: Buffer.from(finalDocJSON).toString("base64"),
               sha: sha,
               // branch: 'gh-pages'
             };
-
             repo
-              .contents("public/feed.json")
-              .add(config)
-              .then(({ sha, ...info }) => {
-                console.log("File Updated. new sha is ", sha);
+              .writeFile(
+                "main",
+                "public/feed.json",
+                finalDocJSON,
+                "Updating file",
+                config
+              )
+
+              .then((info) => {
+                console.log("File Updated. info ", info);
               });
           }
         }}
